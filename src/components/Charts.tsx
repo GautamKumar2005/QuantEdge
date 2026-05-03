@@ -50,7 +50,7 @@ export function MCPathsChart({ data }: Props) {
   const n_steps = paths[0].length;
   const x = Array.from({ length: n_steps }, (_, i) => i);
 
-  const traces = paths.map((path, i) => ({
+  const traces: any[] = paths.map((path, i) => ({
     x, y: path, type: "scatter", mode: "lines",
     line: { color: `rgba(0,210,255,${0.04 + (i / paths.length) * 0.08})`, width: 0.8 },
     showlegend: false, hoverinfo: "skip",

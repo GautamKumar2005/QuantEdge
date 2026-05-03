@@ -1,0 +1,7 @@
+node_modules/
+.next/
+__pycache__/
+*.pyc
+out.txt
+test_price.py
+start_backend.sh

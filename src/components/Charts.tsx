@@ -140,7 +140,7 @@ export function ComparisonChart({ data }: Props) {
           <Tooltip 
             cursor={{ fill: "rgba(255,255,255,0.05)" }}
             contentStyle={{ backgroundColor: "rgba(10,21,32,0.9)", border: "1px solid var(--border)", borderRadius: 8, color: "#e2eaf4" }}
-            formatter={(val: number) => `$${val.toFixed(3)}`}
+            formatter={(val: any) => `$${Number(val).toFixed(3)}`}
           />
           <Legend wrapperStyle={{ fontSize: "0.85rem", color: "#7b9ab7", paddingTop: 10 }} />
           <Bar dataKey="BS" name="Black-Scholes" fill="rgba(168,85,247,0.8)" radius={[4, 4, 0, 0]} />

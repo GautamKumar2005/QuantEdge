@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, AreaChart, Area, ReferenceLine } from "recharts";
 
 // Use plotly factory with minimal dist to avoid huge bundle size and Turbopack issues
 const Plot = dynamic(() => 
@@ -26,20 +27,30 @@ const LAYOUT_BASE = {
 export function PayoffChart({ data }: Props) {
   if (!data?.payoff) return null;
   const { stock_prices, call_payoff, put_payoff } = data.payoff;
-  const traces = [
-    { x: stock_prices, y: call_payoff, name: "Call P&L", type: "scatter", mode: "lines",
-      line: { color: "#00ff9d", width: 2.5 }, fill: "tozeroy", fillcolor: "rgba(0,255,157,0.06)" },
-    { x: stock_prices, y: put_payoff, name: "Put P&L", type: "scatter", mode: "lines",
-      line: { color: "#ff4560", width: 2.5 }, fill: "tozeroy", fillcolor: "rgba(255,69,96,0.06)" },
-    { x: [data.strike, data.strike], y: [Math.min(...call_payoff, ...put_payoff), Math.max(...call_payoff, ...put_payoff)],
-      name: "Strike", type: "scatter", mode: "lines",
-      line: { color: "rgba(0,210,255,0.5)", width: 1.5, dash: "dash" } },
-  ];
+  const chartData = stock_prices.map((price: number, i: number) => ({
+    price: Number(price.toFixed(2)),
+    Call: Number(call_payoff[i].toFixed(2)),
+    Put: Number(put_payoff[i].toFixed(2))
+  }));
+
   return (
-    <Plot data={traces as any}
-      layout={{ ...LAYOUT_BASE, title: { text: "Payoff Diagram at Expiry", font: { color: "#e2eaf4", size: 13 } } } as any}
-      useResizeHandler={true}
-      config={{ displayModeBar: false, responsive: true }} style={{ width: "100%", height: 300 }} />
+    <div style={{ width: "100%", height: 300 }}>
+      <ResponsiveContainer>
+        <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,80,130,0.2)" vertical={false} />
+          <XAxis dataKey="price" stroke="#7b9ab7" tick={{ fill: "#7b9ab7", fontSize: 11 }} />
+          <YAxis stroke="#7b9ab7" tick={{ fill: "#7b9ab7", fontSize: 11 }} />
+          <Tooltip 
+            contentStyle={{ backgroundColor: "rgba(10,21,32,0.9)", border: "1px solid var(--border)", borderRadius: 8, color: "#e2eaf4" }}
+            itemStyle={{ fontSize: "0.85rem" }}
+          />
+          <Legend wrapperStyle={{ fontSize: "0.85rem", color: "#7b9ab7" }} />
+          <ReferenceLine x={data.strike} stroke="rgba(0,210,255,0.5)" strokeDasharray="3 3" label={{ position: 'top', value: 'Strike', fill: 'rgba(0,210,255,0.5)', fontSize: 10 }} />
+          <Area type="monotone" dataKey="Call" name="Call P&L" stroke="#00ff9d" fill="rgba(0,255,157,0.1)" strokeWidth={2} />
+          <Area type="monotone" dataKey="Put" name="Put P&L" stroke="#ff4560" fill="rgba(255,69,96,0.1)" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -112,23 +123,31 @@ export function ComparisonChart({ data }: Props) {
   if (!data?.black_scholes || !data?.monte_carlo) return null;
   const bs = data.black_scholes;
   const mc = data.monte_carlo;
+  const bt = data.binomial_tree;
 
-  const traces: any[] = [
-    { x: ["Call", "Put"], y: [bs.call_price, bs.put_price],
-      name: "Black-Scholes", type: "bar",
-      marker: { color: ["rgba(168,85,247,0.8)", "rgba(168,85,247,0.5)"] },
-      text: [`$${bs.call_price}`, `$${bs.put_price}`], textposition: "auto" },
-    { x: ["Call", "Put"], y: [mc.call_price, mc.put_price],
-      name: "Monte Carlo", type: "bar",
-      marker: { color: ["rgba(0,210,255,0.8)", "rgba(0,210,255,0.5)"] },
-      text: [`$${mc.call_price}`, `$${mc.put_price}`], textposition: "auto" },
+  const chartData = [
+    { name: "Call Price", BS: Number(bs.call_price.toFixed(3)), MC: Number(mc.call_price.toFixed(3)), BT: bt ? Number(bt.call_price.toFixed(3)) : undefined },
+    { name: "Put Price", BS: Number(bs.put_price.toFixed(3)), MC: Number(mc.put_price.toFixed(3)), BT: bt ? Number(bt.put_price.toFixed(3)) : undefined },
   ];
 
   return (
-    <Plot data={traces}
-      layout={{ ...LAYOUT_BASE, barmode: "group",
-        title: { text: "Model Comparison: BS vs Monte Carlo", font: { color: "#e2eaf4", size: 13 } } } as any}
-      useResizeHandler={true}
-      config={{ displayModeBar: false, responsive: true }} style={{ width: "100%", height: 280 }} />
+    <div style={{ width: "100%", height: 280 }}>
+      <ResponsiveContainer>
+        <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,80,130,0.2)" vertical={false} />
+          <XAxis dataKey="name" stroke="#7b9ab7" tick={{ fill: "#7b9ab7", fontSize: 12 }} />
+          <YAxis stroke="#7b9ab7" tick={{ fill: "#7b9ab7", fontSize: 11 }} />
+          <Tooltip 
+            cursor={{ fill: "rgba(255,255,255,0.05)" }}
+            contentStyle={{ backgroundColor: "rgba(10,21,32,0.9)", border: "1px solid var(--border)", borderRadius: 8, color: "#e2eaf4" }}
+            formatter={(val: number) => `$${val.toFixed(3)}`}
+          />
+          <Legend wrapperStyle={{ fontSize: "0.85rem", color: "#7b9ab7", paddingTop: 10 }} />
+          <Bar dataKey="BS" name="Black-Scholes" fill="rgba(168,85,247,0.8)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="MC" name="Monte Carlo" fill="rgba(0,210,255,0.8)" radius={[4, 4, 0, 0]} />
+          {bt && <Bar dataKey="BT" name="Binomial Tree" fill="rgba(255,165,0,0.8)" radius={[4, 4, 0, 0]} />}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

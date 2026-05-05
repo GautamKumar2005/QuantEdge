@@ -19,7 +19,7 @@ export default function ComparePage() {
   async function runAll() {
     setLoading(true); setResults([]);
     const out = await Promise.all(
-      PRESETS.map(p => priceOption({ ...p, volatility: null, risk_free_rate: 0.05, model: "both", n_paths: 10000 }).catch(() => null))
+      PRESETS.map(p => priceOption({ ...p, volatility: null, risk_free_rate: 0.05, model: "all", n_paths: 10000 }).catch(() => null))
     );
     setResults(out.filter(Boolean));
     setLoading(false);
@@ -63,7 +63,7 @@ export default function ComparePage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 {/* Comparison bar */}
                 <div className="glass-card" style={{ padding: 20 }}>
-                  <div className="section-title">📊 BS vs Monte Carlo</div>
+                  <div className="section-title">📊 Multi-Model Comparison</div>
                   <ComparisonChart data={current} />
                 </div>
 
@@ -73,40 +73,90 @@ export default function ComparePage() {
                   <PayoffChart data={current} />
                 </div>
 
+                {/* AI / ML Deep Analysis */}
+                {current.ml_analysis && (
+                  <div className="glass-card" style={{ padding: 20, gridColumn: "span 2", border: "1px solid var(--accent-purple)" }}>
+                    <div className="section-title" style={{ color: "var(--accent-purple)" }}>🤖 AI Trade Analysis & Real-World Context</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <div>
+                        <h4 style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 8 }}>Actionable Insights</h4>
+                        <ul style={{ paddingLeft: 20, margin: 0, fontSize: "0.85rem", color: "var(--text-primary)" }}>
+                          {current.ml_analysis.actionable_insights.map((insight: string, idx: number) => (
+                            <li key={idx} style={{ marginBottom: 4 }}>{insight}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 8 }}>Market & Risk Regimes</h4>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span>Moneyness:</span> <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>{current.ml_analysis.regime}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span>Risk Profile:</span> <span style={{ color: "var(--accent-red)", fontWeight: 600 }}>{current.ml_analysis.risk_profile}</span>
+                          </div>
+                          <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                            <strong>Real-Time Data:</strong> Underlying <b>{current.symbol}</b> is trading at <b>${current.current_price}</b>. 
+                            The applied annualized volatility is <b>{(current.volatility * 100).toFixed(2)}%</b> over <b>{current.expiry_days} days</b> to expiry.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Table */}
                 <div className="glass-card" style={{ padding: 20, gridColumn: "span 2" }}>
                   <div className="section-title">📋 Price Summary Table</div>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "0.83rem" }}>
                     <thead>
                       <tr style={{ color: "var(--text-muted)", textAlign: "left" }}>
-                        {["Metric", "Black-Scholes", "Monte Carlo", "Diff"].map(h => (
+                        {["Metric", "Black-Scholes", "Monte Carlo", "Binomial Tree"].map(h => (
                           <th key={h} style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.08em" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["Call Price", current.black_scholes?.call_price, current.monte_carlo?.call_price],
-                        ["Put Price",  current.black_scholes?.put_price,  current.monte_carlo?.put_price],
-                        ["Spot Price", current.current_price, current.current_price],
-                        ["Strike",     current.strike, current.strike],
-                        ["Volatility (σ)", (current.volatility * 100).toFixed(2) + "%", (current.volatility * 100).toFixed(2) + "%"],
-                      ].map(([label, bs, mc]) => {
-                        const diff = typeof bs === "number" && typeof mc === "number" ? (mc - bs).toFixed(4) : "--";
+                        ["Call Price", current.black_scholes?.call_price, current.monte_carlo?.call_price, current.binomial_tree?.call_price],
+                        ["Put Price",  current.black_scholes?.put_price,  current.monte_carlo?.put_price, current.binomial_tree?.put_price],
+                        ["Spot Price", current.current_price, current.current_price, current.current_price],
+                        ["Strike",     current.strike, current.strike, current.strike],
+                        ["Volatility (σ)", (current.volatility * 100).toFixed(2) + "%", (current.volatility * 100).toFixed(2) + "%", (current.volatility * 100).toFixed(2) + "%"],
+                      ].map(([label, bs, mc, bt]) => {
                         return (
                           <tr key={String(label)} style={{ borderBottom: "1px solid var(--border)" }}>
                             <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{label}</td>
-                            <td style={{ padding: "10px 12px", color: "var(--accent-purple)" }}>{typeof bs === "number" ? `$${bs}` : bs}</td>
-                            <td style={{ padding: "10px 12px", color: "var(--accent-cyan)" }}>{typeof mc === "number" ? `$${mc}` : mc}</td>
-                            <td style={{ padding: "10px 12px", color: typeof diff === "string" ? "var(--text-muted)" : Number(diff) > 0 ? "var(--accent-green)" : "var(--accent-red)" }}>
-                              {typeof diff === "string" ? diff : `${Number(diff) > 0 ? "+" : ""}${diff}`}
-                            </td>
+                            <td style={{ padding: "10px 12px", color: "var(--accent-purple)" }}>{typeof bs === "number" ? `$${bs.toFixed(3)}` : bs}</td>
+                            <td style={{ padding: "10px 12px", color: "var(--accent-cyan)" }}>{typeof mc === "number" ? `$${mc.toFixed(3)}` : mc}</td>
+                            <td style={{ padding: "10px 12px", color: "var(--accent-green)" }}>{typeof bt === "number" ? `$${bt.toFixed(3)}` : bt ?? "--"}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Greeks Row */}
+                {current.greeks && (
+                  <div className="glass-card" style={{ padding: 20, gridColumn: "span 2" }}>
+                    <div className="section-title">Σ Detailed Greeks (Black-Scholes)</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+                      {[
+                        { label: "Delta (C)", val: current.greeks.delta_call },
+                        { label: "Delta (P)", val: current.greeks.delta_put },
+                        { label: "Gamma", val: current.greeks.gamma },
+                        { label: "Vega", val: current.greeks.vega },
+                        { label: "Theta (C)", val: current.greeks.theta_call },
+                      ].map(g => (
+                        <div key={g.label} style={{ background: "rgba(10,21,32,0.5)", padding: "12px", borderRadius: 8, border: "1px solid var(--border)" }}>
+                          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>{g.label}</div>
+                          <div style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{g.val.toFixed(4)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>

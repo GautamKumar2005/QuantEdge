@@ -80,6 +80,8 @@ def _cpp_mc(S: float, K: float, T: float, r: float, sigma: float,
         # Increase timeout for large simulations
         result = subprocess.run(args, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
+            if n_paths > 500000:
+                return {"error": f"C++ engine failed with code {result.returncode}. StdErr: {result.stderr}", "engine": "cpp"}
             return _python_mc(S, K, T, r, sigma, n_paths, n_steps)
         data = json.loads(result.stdout)
         data["engine"] = "cpp"

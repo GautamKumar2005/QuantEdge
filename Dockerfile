@@ -34,6 +34,7 @@ COPY cpp_engine ./cpp_engine
 
 # Build C++ Monte Carlo engine
 RUN g++ -O3 -std=c++17 cpp_engine/monte_carlo.cpp -o cpp_engine/monte_carlo_engine
+RUN chmod +x cpp_engine/monte_carlo_engine
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
 

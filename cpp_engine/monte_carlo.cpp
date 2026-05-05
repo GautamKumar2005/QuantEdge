@@ -19,6 +19,7 @@
 #include <numeric>
 #include <sstream>
 #include <iomanip>
+#include <cstdint>
 
 struct MCResult {
     double call_price;
@@ -32,7 +33,7 @@ struct MCResult {
 };
 
 MCResult simulate(double S, double K, double T, double r, double sigma,
-                  long long n_paths, int n_steps)
+                  int64_t n_paths, int n_steps)
 {
     const double dt     = T / n_steps;
     const double drift  = (r - 0.5 * sigma * sigma) * dt;
@@ -48,13 +49,13 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
         final_prices.resize(n_paths);
     }
     
-    long long VIS_N = std::min(500LL, n_paths);
+    int64_t VIS_N = std::min((int64_t)500, n_paths);
     std::vector<std::vector<double>> sampled_paths(VIS_N, std::vector<double>(n_steps + 1));
 
-    double call_sum = 0.0, put_sum = 0.0;
-    double mean = 0.0, M2 = 0.0;
+    long double call_sum = 0.0, put_sum = 0.0;
+    long double mean = 0.0, M2 = 0.0;
 
-    for (long long i = 0; i < n_paths; ++i) {
+    for (int64_t i = 0; i < n_paths; ++i) {
         double price = S;
         bool vis = (i < VIS_N);
         if (vis) sampled_paths[i][0] = price;
@@ -67,9 +68,9 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
         if (store_prices) final_prices[i] = price;
         
         // Welford's online algorithm for variance
-        double delta = price - mean;
+        long double delta = (long double)price - mean;
         mean += delta / (i + 1);
-        double delta2 = price - mean;
+        long double delta2 = (long double)price - mean;
         M2 += delta * delta2;
         
         call_sum += std::max(price - K, 0.0);
@@ -135,7 +136,7 @@ int main(int argc, char* argv[]) {
     double T      = std::stod(argv[3]);
     double r      = std::stod(argv[4]);
     double sigma  = std::stod(argv[5]);
-    long long n_paths   = std::stoll(argv[6]);
+    int64_t n_paths   = std::stoll(argv[6]);
     int n_steps   = std::stoi(argv[7]);
 
     auto res = simulate(S, K, T, r, sigma, n_paths, n_steps);

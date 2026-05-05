@@ -23,13 +23,16 @@
 struct MCResult {
     double call_price;
     double put_price;
+    double mean;
+    double std_dev;
+    double p5;
+    double p95;
     std::vector<double> final_prices;
-    // sampled paths (500 max for visualization)
     std::vector<std::vector<double>> sampled_paths;
 };
 
 MCResult simulate(double S, double K, double T, double r, double sigma,
-                  int n_paths, int n_steps)
+                  long long n_paths, int n_steps)
 {
     const double dt     = T / n_steps;
     const double drift  = (r - 0.5 * sigma * sigma) * dt;
@@ -39,13 +42,19 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
     std::mt19937_64 rng(42);
     std::normal_distribution<double> normal(0.0, 1.0);
 
-    std::vector<double> final_prices(n_paths);
-    const int VIS_N = std::min(500, n_paths);
+    bool store_prices = (n_paths <= 5000000);
+    std::vector<double> final_prices;
+    if (store_prices) {
+        final_prices.resize(n_paths);
+    }
+    
+    long long VIS_N = std::min(500LL, n_paths);
     std::vector<std::vector<double>> sampled_paths(VIS_N, std::vector<double>(n_steps + 1));
 
     double call_sum = 0.0, put_sum = 0.0;
+    double mean = 0.0, M2 = 0.0;
 
-    for (int i = 0; i < n_paths; ++i) {
+    for (long long i = 0; i < n_paths; ++i) {
         double price = S;
         bool vis = (i < VIS_N);
         if (vis) sampled_paths[i][0] = price;
@@ -55,7 +64,14 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
             if (vis) sampled_paths[i][j + 1] = price;
         }
 
-        final_prices[i] = price;
+        if (store_prices) final_prices[i] = price;
+        
+        // Welford's online algorithm for variance
+        double delta = price - mean;
+        mean += delta / (i + 1);
+        double delta2 = price - mean;
+        M2 += delta * delta2;
+        
         call_sum += std::max(price - K, 0.0);
         put_sum  += std::max(K - price, 0.0);
     }
@@ -63,6 +79,21 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
     MCResult res;
     res.call_price = discount * call_sum / n_paths;
     res.put_price  = discount * put_sum  / n_paths;
+    res.mean = mean;
+    res.std_dev = std::sqrt(M2 / n_paths);
+    
+    if (store_prices) {
+        std::sort(final_prices.begin(), final_prices.end());
+        res.p5 = final_prices[(size_t)(0.05 * final_prices.size())];
+        res.p95 = final_prices[(size_t)(0.95 * final_prices.size())];
+    } else {
+        // Analytical approx for percentiles if not stored
+        double mu = std::log(S) + drift * n_steps;
+        double sig = vol_dt * std::sqrt(n_steps);
+        res.p5 = std::exp(mu - 1.64485 * sig);
+        res.p95 = std::exp(mu + 1.64485 * sig);
+    }
+
     res.final_prices = final_prices;
     res.sampled_paths = sampled_paths;
     return res;
@@ -72,9 +103,12 @@ MCResult simulate(double S, double K, double T, double r, double sigma,
 std::pair<std::vector<double>, std::vector<double>>
 make_histogram(const std::vector<double>& data, int bins = 60)
 {
-    double lo = *std::min_element(data.begin(), data.end());
-    double hi = *std::max_element(data.begin(), data.end());
+    if (data.empty()) return {{}, {}};
+    double lo = data.front(); // Since it's sorted
+    double hi = data.back();
     double width = (hi - lo) / bins;
+    if (width == 0) width = 1e-6; // prevent div by zero
+    
     std::vector<double> counts(bins, 0);
     for (double v : data) {
         int b = std::min((int)((v - lo) / width), bins - 1);
@@ -101,20 +135,17 @@ int main(int argc, char* argv[]) {
     double T      = std::stod(argv[3]);
     double r      = std::stod(argv[4]);
     double sigma  = std::stod(argv[5]);
-    int n_paths   = std::stoi(argv[6]);
+    long long n_paths   = std::stoll(argv[6]);
     int n_steps   = std::stoi(argv[7]);
 
     auto res = simulate(S, K, T, r, sigma, n_paths, n_steps);
-    auto [hist_centers, hist_density] = make_histogram(res.final_prices);
-
-    std::vector<double>& fp = res.final_prices;
-    std::sort(fp.begin(), fp.end());
-    double mean = std::accumulate(fp.begin(), fp.end(), 0.0) / fp.size();
-    double sq_sum = 0;
-    for (double v : fp) sq_sum += (v - mean) * (v - mean);
-    double std_dev = std::sqrt(sq_sum / fp.size());
-    double p5  = fp[(int)(0.05 * fp.size())];
-    double p95 = fp[(int)(0.95 * fp.size())];
+    
+    std::vector<double> hist_centers, hist_density;
+    if (!res.final_prices.empty()) {
+        auto h = make_histogram(res.final_prices);
+        hist_centers = h.first;
+        hist_density = h.second;
+    }
 
     // Build JSON output
     std::ostringstream out;
@@ -140,10 +171,10 @@ int main(int argc, char* argv[]) {
 
     // Stats
     out << "  \"final_prices_stats\": {\n";
-    out << "    \"mean\": " << mean << ",\n";
-    out << "    \"std\":  " << std_dev << ",\n";
-    out << "    \"p5\":   " << p5  << ",\n";
-    out << "    \"p95\":  " << p95 << "\n";
+    out << "    \"mean\": " << res.mean << ",\n";
+    out << "    \"std\":  " << res.std_dev << ",\n";
+    out << "    \"p5\":   " << res.p5  << ",\n";
+    out << "    \"p95\":  " << res.p95 << "\n";
     out << "  },\n";
 
     // Sampled paths (just first 100 for JSON size)

@@ -123,11 +123,13 @@ export default function ControlPanel({ onSubmit, loading, currentPrice }: Props)
       {(params.model === "monte_carlo" || params.model === "all" || params.model === "both") && (
         <div>
           <label className="field-label">MC Paths: {params.n_paths.toLocaleString()}</label>
-          <input type="range" min={1000} max={100000} step={1000} value={params.n_paths}
+          <input type="number" className="input-field" min={1000} value={params.n_paths}
+            onChange={e => set("n_paths", parseInt(e.target.value) || 1000)} />
+          <input type="range" min={1000} max={10000000} step={10000} value={Math.min(params.n_paths, 10000000)}
             onChange={e => set("n_paths", parseInt(e.target.value))}
-            style={{ width: "100%", accentColor: "var(--accent-purple)" }} />
+            style={{ width: "100%", accentColor: "var(--accent-purple)", marginTop: 8 }} />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 4 }}>
-            <span>1K</span><span>100K+</span>
+            <span>1K</span><span>10M+ (Type above for more)</span>
           </div>
         </div>
       )}

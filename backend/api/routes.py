@@ -25,7 +25,7 @@ class PricingRequest(BaseModel):
     volatility: Optional[float] = Field(None, ge=0.01, le=5.0, description="Override volatility (annualized). If None, auto-compute from Yahoo.")
     risk_free_rate: float = Field(0.05, ge=0, le=1, description="Risk-free rate (annualized)")
     model: Literal["black_scholes", "monte_carlo", "binomial", "both", "all"] = "all"
-    n_paths: int = Field(10000, ge=1000, le=500000, description="Monte Carlo paths")
+    n_paths: int = Field(10000, ge=1000, le=100000000000000, description="Monte Carlo paths")
     is_american: bool = Field(False, description="Use American option pricing (only affects Binomial model)")
 
 

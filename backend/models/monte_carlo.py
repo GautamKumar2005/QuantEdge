@@ -87,7 +87,7 @@ def run_simulation(S: float, K: float, T: float, r: float, sigma: float,
     Main entry point: selects engine based on n_paths.
     Uses C++ for >= 100_000 paths, Python otherwise.
     """
-    n_paths = max(1000, min(n_paths, 500_000))
+    n_paths = max(1000, min(n_paths, 100_000_000_000_000))
     n_steps = max(50, min(n_steps, 504))
 
     if n_paths >= 100_000 and os.path.exists(CPP_ENGINE_PATH):

@@ -10,7 +10,8 @@ import os
 from typing import Dict, Any
 
 # Path to compiled C++ engine (adjust if needed)
-CPP_ENGINE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "cpp_engine", "monte_carlo_engine.exe")
+extension = ".exe" if os.name == "nt" else ""
+CPP_ENGINE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "cpp_engine", f"monte_carlo_engine{extension}")
 
 
 def _python_mc(S: float, K: float, T: float, r: float, sigma: float,

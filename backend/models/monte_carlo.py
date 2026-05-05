@@ -34,6 +34,10 @@ def _python_mc(S: float, K: float, T: float, r: float, sigma: float,
 
     # For visualization: sample 500 paths maximum
     vis_n = min(500, n_paths)
+    if n_paths > 500000:
+        # Cap Python engine at 500k to prevent OOM
+        raise ValueError(f"Python engine cannot handle {n_paths} paths. C++ engine missing or failed.")
+
     idx = np.random.choice(n_paths, vis_n, replace=False)
     sampled_paths = paths[idx].tolist()
 
@@ -72,13 +76,18 @@ def _cpp_mc(S: float, K: float, T: float, r: float, sigma: float,
         str(S), str(K), str(T), str(r), str(sigma),
         str(n_paths), str(n_steps)
     ]
-    result = subprocess.run(args, capture_output=True, text=True, timeout=30)
-    if result.returncode != 0:
-        return _python_mc(S, K, T, r, sigma, n_paths, n_steps)
-
-    data = json.loads(result.stdout)
-    data["engine"] = "cpp"
-    return data
+    try:
+        # Increase timeout for large simulations
+        result = subprocess.run(args, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            return _python_mc(S, K, T, r, sigma, n_paths, n_steps)
+        data = json.loads(result.stdout)
+        data["engine"] = "cpp"
+        return data
+    except subprocess.TimeoutExpired:
+        return {"error": "Computation timed out. Try fewer paths.", "engine": "cpp"}
+    except Exception as e:
+        return {"error": str(e), "engine": "cpp"}
 
 
 def run_simulation(S: float, K: float, T: float, r: float, sigma: float,

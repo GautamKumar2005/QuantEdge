@@ -86,64 +86,70 @@ def price_option(req: PricingRequest):
     Main endpoint: prices an option using BS and/or Monte Carlo.
     Returns prices, Greeks, payoff diagram, and (optionally) MC paths.
     """
-    symbol = req.symbol.upper()
-    T = req.expiry_days / 365.0
-    r = req.risk_free_rate
+    try:
+        symbol = req.symbol.upper()
+        T = req.expiry_days / 365.0
+        r = req.risk_free_rate
 
-    # Get market data
-    current_price, hist_vol = _fetch_market_data(symbol)
-    S = current_price
-    sigma = req.volatility if req.volatility is not None else hist_vol
-    K = req.strike
+        # Get market data
+        current_price, hist_vol = _fetch_market_data(symbol)
+        S = current_price
+        sigma = req.volatility if req.volatility is not None else hist_vol
+        K = req.strike
 
-    result: dict = {
-        "symbol": symbol,
-        "current_price": round(S, 2),
-        "strike": K,
-        "expiry_days": req.expiry_days,
-        "volatility": round(sigma, 4),
-        "risk_free_rate": r,
-        "T": round(T, 6),
-    }
-
-    # ── Greeks (always computed via BS) ──
-    greeks = compute_greeks(S, K, T, r, sigma)
-    result["greeks"] = greeks
-
-    # ── ML AI Analysis ──
-    result["ml_analysis"] = analyze_trade(
-        delta=greeks["delta_call"],
-        gamma=greeks["gamma"],
-        vega=greeks["vega"],
-        theta=greeks["theta_call"],
-        vol=sigma,
-        dte=req.expiry_days
-    )
-
-    # ── Payoff diagram ──
-    result["payoff"] = payoff_diagram(K, T, r, sigma)
-
-    # ── Black-Scholes prices ──
-    if req.model in ("black_scholes", "both", "all"):
-        bs = bs_price(S, K, T, r, sigma)
-        result["black_scholes"] = bs
-
-    # ── Monte Carlo ──
-    if req.model in ("monte_carlo", "both", "all"):
-        mc = run_simulation(S, K, T, r, sigma, n_paths=req.n_paths)
-        result["monte_carlo"] = mc
-
-    # ── Binomial Tree ──
-    if req.model in ("binomial", "all"):
-        call_price = binomial_tree_price(S, K, T, r, sigma, is_call=True, is_american=req.is_american)
-        put_price = binomial_tree_price(S, K, T, r, sigma, is_call=False, is_american=req.is_american)
-        result["binomial_tree"] = {
-            "call_price": round(call_price, 4),
-            "put_price": round(put_price, 4),
-            "is_american": req.is_american
+        result: dict = {
+            "symbol": symbol,
+            "current_price": round(S, 2),
+            "strike": K,
+            "expiry_days": req.expiry_days,
+            "volatility": round(sigma, 4),
+            "risk_free_rate": r,
+            "T": round(T, 6),
         }
 
-    return result
+        # ── Greeks (always computed via BS) ──
+        greeks = compute_greeks(S, K, T, r, sigma)
+        result["greeks"] = greeks
+
+        # ── ML AI Analysis ──
+        result["ml_analysis"] = analyze_trade(
+            delta=greeks["delta_call"],
+            gamma=greeks["gamma"],
+            vega=greeks["vega"],
+            theta=greeks["theta_call"],
+            vol=sigma,
+            dte=req.expiry_days
+        )
+
+        # ── Payoff diagram ──
+        result["payoff"] = payoff_diagram(K, T, r, sigma)
+
+        # ── Black-Scholes prices ──
+        if req.model in ("black_scholes", "both", "all"):
+            bs = bs_price(S, K, T, r, sigma)
+            result["black_scholes"] = bs
+
+        # ── Monte Carlo ──
+        if req.model in ("monte_carlo", "both", "all"):
+            mc = run_simulation(S, K, T, r, sigma, n_paths=req.n_paths)
+            result["monte_carlo"] = mc
+
+        # ── Binomial Tree ──
+        if req.model in ("binomial", "all"):
+            call_price = binomial_tree_price(S, K, T, r, sigma, is_call=True, is_american=req.is_american)
+            put_price = binomial_tree_price(S, K, T, r, sigma, is_call=False, is_american=req.is_american)
+            result["binomial_tree"] = {
+                "call_price": round(float(call_price), 4),
+                "put_price":  round(float(put_price), 4),
+                "steps": 100,
+                "is_american": req.is_american
+            }
+
+        return result
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class IVRequest(BaseModel):

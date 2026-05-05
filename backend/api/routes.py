@@ -72,12 +72,15 @@ def health():
 @router.get("/market/{symbol}")
 def get_market_data(symbol: str):
     """Fetch current price and historical volatility for a symbol."""
-    price, vol = _fetch_market_data(symbol.upper())
-    return {
-        "symbol": symbol.upper(),
-        "current_price": round(price, 2),
-        "historical_volatility": round(vol, 4),
-    }
+    try:
+        price, vol = _fetch_market_data(symbol.upper())
+        return {
+            "symbol": symbol.upper(),
+            "current_price": round(price, 2),
+            "historical_volatility": round(vol, 4),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/price")

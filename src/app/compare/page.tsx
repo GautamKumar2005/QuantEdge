@@ -81,19 +81,19 @@ export default function ComparePage() {
                       <div>
                         <h4 style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 8 }}>Actionable Insights</h4>
                         <ul style={{ paddingLeft: 20, margin: 0, fontSize: "0.85rem", color: "var(--text-primary)" }}>
-                          {current.ml_analysis.actionable_insights.map((insight: string, idx: number) => (
+                          {current.ml_analysis.insights?.map((insight: string, idx: number) => (
                             <li key={idx} style={{ marginBottom: 4 }}>{insight}</li>
-                          ))}
+                          )) ?? <li>No insights available</li>}
                         </ul>
                       </div>
                       <div>
                         <h4 style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 8 }}>Market & Risk Regimes</h4>
                         <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", display: "flex", flexDirection: "column", gap: 8 }}>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span>Moneyness:</span> <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>{current.ml_analysis.regime}</span>
+                            <span>Success Prob:</span> <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>{current.ml_analysis.success_probability}%</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span>Risk Profile:</span> <span style={{ color: "var(--accent-red)", fontWeight: 600 }}>{current.ml_analysis.risk_profile}</span>
+                            <span>Risk Profile:</span> <span style={{ color: "var(--accent-red)", fontWeight: 600 }}>{current.ml_analysis.risk_cluster}</span>
                           </div>
                           <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
                             <strong>Real-Time Data:</strong> Underlying <b>{current.symbol}</b> is trading at <b>${current.current_price}</b>. 
